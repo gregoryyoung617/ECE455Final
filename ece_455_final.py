@@ -49,6 +49,7 @@ if __name__ == "__main__":
                 sp[4] = (i // sp[1] + 1) * sp[1] + sp[2]      # set deadline to next period + deadline
                 cooldown.append(sp)
                 queue.pop(shortest_idx)
+                last_running = None
 
             # check for overrun deadlines
             for task in queue:
