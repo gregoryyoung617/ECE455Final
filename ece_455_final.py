@@ -9,11 +9,10 @@ if __name__ == "__main__":
             values = [int(float(v) * 1000) for v in line.strip().split(',')]
             tasks.append(values)
 
-    # e p d curr_exec curr_dl
-    print(f"tasks: {tasks}")
+    # e p d curr_exec curr_dl preemption
+
 
     hyperperiod = math.lcm(*[t[1] for t in tasks])
-    print(f"hyperperiod: {hyperperiod}")
 
     # check utilization
     utilization = 0
