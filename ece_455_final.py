@@ -4,38 +4,6 @@ import sys
 from decimal import Decimal
 from fractions import Fraction
 
-
-def parse_tasks(filename):
-    raw_tasks = []
-    max_decimals = 0
-
-    with open(filename, "r") as file_handle:
-        for line in file_handle:
-            stripped = line.strip()
-            if not stripped:
-                continue
-
-            row = []
-            for value in stripped.split(","):
-                decimal_value = Decimal(value.strip())
-                row.append(decimal_value)
-                max_decimals = max(max_decimals, -decimal_value.as_tuple().exponent)
-            raw_tasks.append(row)
-
-    scale = 10 ** max_decimals
-    tasks = [[int(value * scale) for value in task] for task in raw_tasks]
-
-    quantum = 0
-    for task in tasks:
-        for value in task:
-            quantum = math.gcd(quantum, value)
-
-    if quantum > 1:
-        tasks = [[value // quantum for value in task] for task in tasks]
-
-    return tasks
-
-
 def clean_ready_heap(ready_heap, jobs):
     while ready_heap and not jobs[ready_heap[0][2]]["active"]:
         heapq.heappop(ready_heap)
@@ -69,7 +37,42 @@ def release_jobs(current_time, hyperperiod, task_states, release_heap, ready_hea
             heapq.heappush(release_heap, (next_release, task_index))
 
 
-def simulate_rm(tasks):
+
+if __name__ == "__main__":
+    filename = sys.argv[1]
+    raw_tasks = []
+    max_decimals = 0
+
+    with open(filename, "r") as file_handle:
+        for line in file_handle:
+            stripped = line.strip()
+            if not stripped:
+                continue
+
+            row = []
+            for value in stripped.split(","):
+                decimal_value = Decimal(value.strip())
+                row.append(decimal_value)
+                max_decimals = max(max_decimals, -decimal_value.as_tuple().exponent)
+            raw_tasks.append(row)
+
+    scale = 10 ** max_decimals
+    tasks = [[int(value * scale) for value in task] for task in raw_tasks]
+
+    quantum = 0
+    for task in tasks:
+        for value in task:
+            quantum = math.gcd(quantum, value)
+
+    if quantum > 1:
+        tasks = [[value // quantum for value in task] for task in tasks]
+
+    utilization = sum(Fraction(task[0], task[1]) for task in tasks)
+    if utilization > 1:
+        print("0")
+        print("")
+        raise SystemExit
+
     hyperperiod = math.lcm(*[task[1] for task in tasks])
     task_states = [
         {
@@ -101,6 +104,7 @@ def simulate_rm(tasks):
         counters,
     )
 
+    schedulable = True
     while current_time < hyperperiod:
         clean_ready_heap(ready_heap, jobs)
         clean_deadline_heap(deadline_heap, jobs)
@@ -144,8 +148,10 @@ def simulate_rm(tasks):
 
         clean_deadline_heap(deadline_heap, jobs)
         if deadline_heap and deadline_heap[0][0] <= current_time:
-            return False, []
-
+            schedulable = False
+            preemptions = []
+            break
+        
         if release_heap and release_heap[0][0] == current_time:
             was_preemptable = running_job["active"]
             previous_running_id = running_job_id if was_preemptable else None
@@ -165,21 +171,9 @@ def simulate_rm(tasks):
             if previous_running_id is not None and ready_heap and ready_heap[0][2] != previous_running_id:
                 task_index = jobs[previous_running_id]["task_index"]
                 task_states[task_index]["preemptions"] += 1
+    
+    preemptions = [task["preemptions"] for task in task_states]
 
-    return True, [task["preemptions"] for task in task_states]
-
-
-if __name__ == "__main__":
-    filename = sys.argv[1]
-    tasks = parse_tasks(filename)
-
-    utilization = sum(Fraction(task[0], task[1]) for task in tasks)
-    if utilization > 1:
-        print("0")
-        print("")
-        raise SystemExit
-
-    schedulable, preemptions = simulate_rm(tasks)
     if not schedulable:
         print("0")
         print("")
